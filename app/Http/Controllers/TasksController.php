@@ -50,7 +50,7 @@ class TasksController extends Controller
     {
         // タスクを作成
         $task = new Task;
-        $task->content = $task->content;
+        $task->content = $request->content;
         $task->save();
 
         // トップページへリダイレクトさせる
@@ -119,7 +119,7 @@ class TasksController extends Controller
     public function destroy($id)
     {
         // idの値でタスクを検索して取得
-        $task = task::findOrFail($id);
+        $task = Task::findOrFail($id);
         // タスクを削除
         $task->delete();
 
