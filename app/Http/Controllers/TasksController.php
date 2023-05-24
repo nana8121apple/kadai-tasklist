@@ -16,14 +16,24 @@ class TasksController extends Controller
      */
     public function index()
     {
-        // タスク一覧を取得
-        $tasks = Task::all();         
-
+        $tasks = [];
+        if (\Auth::check()) { // 認証済みの場合
+            // 認証済みユーザを取得
+            $user = \Auth::user();
+            // ユーザの投稿の一覧を作成日時の降順で取得
+            $tasks = $user->tasks()->orderBy('created_at', 'desc')->paginate(10);
+            $data = [
+                'user' => $user,
+                'tasks' => $tasks,
+            ];
+        }
         // タスク一覧ビューでそれを表示
-        return view('tasks.index', [     
-            'tasks' => $tasks,        
-        ]);                                 
-    }
+        return view('tasks.index', [     // 追加
+            'tasks' => $tasks,        // 追加
+        ]);                                 // 追加
+    }   
+    
+
 
     /**
      * Show the form for creating a new resource.
@@ -32,12 +42,17 @@ class TasksController extends Controller
      */
     public function create()
     {
+        if (\Auth::check()) { // 認証済みの場合
+        // 認証済みユーザを取得
+        $user = \Auth::user();
         $task = new Task;
 
         // タスク作成ビューを表示
         return view('tasks.create', [
             'task' => $task,
         ]);
+        }
+        
     }
 
     /**
@@ -48,18 +63,10 @@ class TasksController extends Controller
      */
     public function store(Request $request)
     {
-        
-        // バリデーション
-        $request->validate([
-            'status' => 'required|max:10',
-            'content' => 'required|max:255',
+        $request->user()->tasks()->create([
+            'status' => $request->status,
+            'content' => $request->content,
         ]);
-        
-        // タスクを作成
-        $task = new Task;
-        $task->status = $request->status;
-        $task->content = $request->content;
-        $task->save();
 
         // トップページへリダイレクトさせる
         return redirect('/');
@@ -73,13 +80,18 @@ class TasksController extends Controller
      */
     public function show($id)
     {
-         // idの値でタスクを検索して取得
+        // idの値でメッセージを検索して取得
         $task = Task::findOrFail($id);
+        if (\Auth::id() === $task->user_id){
 
         // タスク詳細ビューでそれを表示
         return view('tasks.show', [
             'task' => $task,
         ]);
+        }
+         // トップページへリダイレクトさせる
+        return redirect('/');
+        
     }
 
     /**
@@ -88,15 +100,19 @@ class TasksController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function edit($id)
-    {
+    public function edit($id){
+        
         // idの値でタスクを検索して取得
         $task = Task::findOrFail($id);
 
+        if (\Auth::id() === $task->user_id) {
         // タスク編集ビューでそれを表示
         return view('tasks.edit', [
             'task' => $task,
         ]);
+        }
+        // トップページへリダイレクトさせる
+        return redirect('/');
     }
 
     /**
@@ -108,14 +124,9 @@ class TasksController extends Controller
      */
     public function update(Request $request, $id)
     {
-         $request->validate([
-            'status' => 'required|max:10',   
-            'content' => 'required|max:255',
-        ]);
-         
-         // idの値でタスクを検索して取得
+          // idの値でタスクを検索して取得
         $task = Task::findOrFail($id);
-        // タスクを更新
+        // ステータス、タスクを更新
         $task->status = $request->status;
         $task->content = $request->content;
         $task->save();
@@ -132,12 +143,17 @@ class TasksController extends Controller
      */
     public function destroy($id)
     {
-        // idの値でタスクを検索して取得
-        $task = Task::findOrFail($id);
-        // タスクを削除
-        $task->delete();
+         // idの値で投稿を検索して取得
+        $task = \App\Models\Task::findOrFail($id);
+        
+        // 認証済みユーザ（閲覧者）がその投稿の所有者である場合は投稿を削除
+        if (\Auth::id() === $task->user_id) {
+            $task->delete();
+            // トップページへリダイレクトさせる
+            return redirect('/');
+        }
 
-        // トップページへリダイレクトさせる
+     // トップページへリダイレクトさせる
         return redirect('/');
     }
 }
